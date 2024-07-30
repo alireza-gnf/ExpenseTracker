@@ -1,7 +1,51 @@
 import request from "supertest";
 import { app } from "../../src/api";
-import { chandler, monicha } from "../../src/model/User.model";
-import { friends } from "../../src/model/Group.model";
+import { User } from "../../src/models/User.model";
+import { Group } from "../../src/models/Group.model";
+
+let chandler: User;
+let monicha: User;
+let friends: Group;
+
+beforeAll(async () => {
+  await request(app).post("/auth/register").send({
+    username: "chandler",
+    password: "Chandler123",
+  });
+
+  await request(app).post("/auth/register").send({
+    username: "monicha",
+    password: "Monicha123",
+  });
+
+  const { body: chandlerResponse } = await request(app)
+    .post("/auth/login")
+    .send({
+      username: "chandler",
+      password: "Chandler123",
+    });
+
+  chandler = chandlerResponse.data;
+
+  const { body: monichaResponse } = await request(app)
+    .post("/auth/login")
+    .send({
+      username: "monicha",
+      password: "Monicha123",
+    });
+
+  monicha = monichaResponse.data;
+
+  const { body: friendsResponse } = await request(app)
+    .post("/groups")
+    .set({
+      authorization: chandler.id,
+    })
+    .send({
+      title: "friends",
+    });
+  friends = friendsResponse.data;
+});
 
 const URL = `/users/expenses`;
 describe("Create Expense", () => {
@@ -9,105 +53,62 @@ describe("Create Expense", () => {
     await request(app).post(URL).send().expect(401);
   });
 
-  it("Should fail if groupId is not specified", async () => {
+  it("Should fail if amount is not set or incorrect", async () => {
     await request(app)
       .post(URL)
       .set({
-        authorization: chandler.id.value,
+        authorization: chandler.id,
       })
       .send({
+        groupId: friends.id,
+        description: "Monicha's birthday party",
+      })
+      .expect(400);
+
+    await request(app)
+      .post(URL)
+      .set({
+        authorization: chandler.id,
+      })
+      .send({
+        groupId: friends.id,
         amount: 2500,
         description: "Monicha's birthday party",
       })
       .expect(400);
   });
 
-  it("Should fail if group not found", async () => {
+  it("Should fail if description is not set or incorrect", async () => {
     await request(app)
       .post(URL)
       .set({
-        authorization: chandler.id.value,
+        authorization: chandler.id,
       })
       .send({
-        groupId: "wrongId",
-      })
-      .expect(400);
-  });
-
-  it("Should fail if user is not a member of the group", async () => {
-    await request(app)
-      .post(URL)
-      .set({
-        authorization: monicha.id.value,
-      })
-      .send({
-        groupId: friends.id.value,
-      })
-      .expect(400);
-  });
-
-  it("Should fail if amount is not specified", async () => {
-    await request(app)
-      .post(URL)
-      .set({
-        authorization: chandler.id.value,
-      })
-      .send({
-        groupId: friends.id.value,
-        description: "Monicha's birthday party",
-      })
-      .expect(400);
-  });
-
-  it("Should fail if amount is under 5000", async () => {
-    await request(app)
-      .post(URL)
-      .set({
-        authorization: chandler.id.value,
-      })
-      .send({
-        groupId: friends.id.value,
-        amount: 2500,
-        description: "Monicha's birthday party",
-      })
-      .expect(400);
-  });
-
-  it("Should fail if description is not specified", async () => {
-    await request(app)
-      .post(URL)
-      .set({
-        authorization: chandler.id.value,
-      })
-      .send({
-        groupId: friends.id.value,
+        groupId: friends.id,
         amount: 6000,
       })
       .expect(400);
-  });
 
-  it("Should fail if description is less than 5", async () => {
     await request(app)
       .post(URL)
       .set({
-        authorization: chandler.id.value,
+        authorization: chandler.id,
       })
       .send({
-        groupId: friends.id.value,
+        groupId: friends.id,
         amount: 6000,
         description: "part",
       })
       .expect(400);
-  });
 
-  it("Should fail if description is more than 50", async () => {
     await request(app)
       .post(URL)
       .set({
-        authorization: chandler.id.value,
+        authorization: chandler.id,
       })
       .send({
-        groupId: friends.id.value,
+        groupId: friends.id,
         amount: 6000,
         description:
           "That time we went to cafe and Ross was bluffing about his job",
@@ -115,23 +116,62 @@ describe("Create Expense", () => {
       .expect(400);
   });
 
-  it("Should create expense", async () => {
-    const { body } = await request(app)
+  it("Should fail if groupId is not set or not found", async () => {
+    await request(app)
       .post(URL)
       .set({
-        authorization: chandler.id.value,
+        authorization: chandler.id,
       })
       .send({
-        groupId: friends.id.value,
+        amount: 6000,
+        description: "Monicha's birthday party",
+      })
+      .expect(400);
+
+    await request(app)
+      .post(URL)
+      .set({
+        authorization: chandler.id,
+      })
+      .send({
+        groupId: "wrongId",
+        amount: 6000,
+        description: "Monicha's birthday party",
+      })
+      .expect(404);
+  });
+
+  it("Should fail if user is not a member of the group", async () => {
+    await request(app)
+      .post(URL)
+      .set({
+        authorization: monicha.id,
+      })
+      .send({
+        groupId: friends.id,
+        amount: 6000,
+        description: "Monicha's birthday party",
+      })
+      .expect(403);
+  });
+
+  it("Should create expense", async () => {
+    const { body: expenseResponse } = await request(app)
+      .post(URL)
+      .set({
+        authorization: chandler.id,
+      })
+      .send({
+        groupId: friends.id,
         amount: 6000,
         description: "Monicha's birthday party",
       })
       .expect(201);
 
-    const { data } = body;
-    expect(data.groupId).toStrictEqual(friends.id);
-    expect(data.userId).toStrictEqual(chandler.id);
-    expect(data.amount).toBe(6000);
-    expect(data.description).toBe("Monicha's birthday party");
+    const expense = expenseResponse.data;
+    expect(expense.groupId).toStrictEqual(friends.id);
+    expect(expense.userId).toStrictEqual(chandler.id);
+    expect(expense.amount).toBe(6000);
+    expect(expense.description).toBe("Monicha's birthday party");
   });
 });

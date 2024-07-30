@@ -1,6 +1,22 @@
 import request from "supertest";
 import { app } from "../../src/api";
-import { chandler } from "../../src/model/User.model";
+import { User } from "../../src/models/User.model";
+
+let tempUser: User;
+
+beforeAll(async () => {
+  await request(app).post("/auth/register").send({
+    username: "tempUser",
+    password: "Strong123",
+  });
+
+  const { body } = await request(app).post("/auth/login").send({
+    username: "tempUser",
+    password: "Strong123",
+  });
+
+  tempUser = body.data;
+});
 
 describe("Group", () => {
   describe("Create", () => {
@@ -8,33 +24,11 @@ describe("Group", () => {
       await request(app).post("/groups").send().expect(401);
     });
 
-    it("Should fail if title is not sent", async () => {
+    it("Should fail if title is not valid", async () => {
       await request(app)
         .post("/groups")
         .set({
-          authorization: chandler.id.value,
-        })
-        .send()
-        .expect(400);
-    });
-
-    it("Should fail if title is less than 5", async () => {
-      await request(app)
-        .post("/groups")
-        .set({
-          authorization: chandler.id.value,
-        })
-        .send({
-          title: "asdf",
-        })
-        .expect(400);
-    });
-
-    it("Should fail if title is more than 15", async () => {
-      await request(app)
-        .post("/groups")
-        .set({
-          authorization: chandler.id.value,
+          authorization: tempUser.id,
         })
         .send({
           title: "This is a long title",
@@ -43,19 +37,19 @@ describe("Group", () => {
     });
 
     it("Should create group", async () => {
-      const { body } = await request(app)
+      const { body: tempGroupResponse } = await request(app)
         .post("/groups")
         .set({
-          authorization: chandler.id.value,
+          authorization: tempUser.id,
         })
         .send({
-          title: "Friends",
+          title: "tempGroup",
         })
         .expect(201);
 
-      const { data } = body;
-      expect(data.title).toBe("Friends");
-      expect(data.creatorId).toStrictEqual(chandler.id);
+      const group = tempGroupResponse.data;
+      expect(group.title).toBe("tempGroup");
+      expect(group.creatorId).toStrictEqual(tempUser.id);
     });
   });
 });

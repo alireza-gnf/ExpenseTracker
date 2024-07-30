@@ -1,27 +1,23 @@
 import { Router } from "express";
 import { createGroupSchema } from "../modules/dto/group.dto";
-import { ZodError } from "zod";
-import { createResource, prepareModel } from "../model/Base.model";
-import { Group, groups } from "../model/Group.model";
-import { GroupUser, groupUsersPivot } from "../model/GroupUser.model";
+import { addMemberSchema } from "../modules/dto/addMember.dto";
+import { NotFound } from "../modules/utilities/http-error";
+import { groupService, groupUserService, userService } from "../dependency";
 
 export const app = Router();
 
 app.post("/", (req, res) => {
-  try {
-    const dto = createGroupSchema.parse(req.body);
-    const userId = req.user.id;
-    const group = prepareModel<Group>({ ...dto, creatorId: userId }, "group");
-    createResource(group, groups);
-    const groupUser = prepareModel<GroupUser>(
-      { groupId: group.id, userId },
-      "groupUser"
-    );
-    createResource(groupUser, groupUsersPivot);
-    res.status(201).send({ data: group });
-  } catch (e) {
-    if (e instanceof ZodError) {
-      res.status(400).send({ messages: e.errors });
-    }
-  }
+  const dto = createGroupSchema.parse(req.body);
+  const userId = req.user.id;
+  const group = groupService.create(dto, userId, groupUserService);
+  res.status(201).send({ data: group });
+});
+
+// Implement find resource for param middleware
+app.post("/:id/add-member", (req, res) => {
+  const group = groupService.findById(req.params.id);
+  if (!group) throw new NotFound("Group not found");
+  const dto = addMemberSchema.parse(req.body);
+  groupService.addMember(dto, group.id, userService, groupUserService);
+  res.status(201).send();
 });

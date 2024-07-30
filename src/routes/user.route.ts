@@ -1,60 +1,40 @@
 import { Router } from "express";
 import { createExpenseSchema } from "../modules/dto/expense.dto";
-import { ZodError } from "zod";
-import { createResource, prepareModel } from "../model/Base.model";
-import { Expense, expenses } from "../model/Expense.model";
 import {
-  userExpenses,
-  userGroupExpenses,
-  userGroups,
-} from "../model/User.model";
-import { groupUsersPivot } from "../model/GroupUser.model";
-import { groups } from "../model/Group.model";
+  expenseService,
+  groupService,
+  groupUserService,
+  userService,
+} from "../dependency";
 
 export const app = Router();
 
 app.post("/expenses", (req, res) => {
   const userId = req.user.id;
-  try {
-    const dto = createExpenseSchema.parse({
-      ...req.body,
-      userId: userId.value,
-    });
-    const data = createResource(
-      prepareModel<Expense>(
-        {
-          ...dto,
-          userId,
-          groupId: {
-            value: dto.groupId,
-            type: "group",
-          },
-        },
-        "expense"
-      ),
-      expenses
-    );
-
-    res.status(201).send({ data });
-  } catch (e) {
-    if (e instanceof ZodError) {
-      res.status(400).send({ errors: e.errors });
-      return;
-    }
-  }
+  const dto = createExpenseSchema.parse(req.body);
+  const newExpense = expenseService.create(
+    dto,
+    userId,
+    userService,
+    groupService,
+    groupUserService
+  );
+  res.status(201).send({ data: newExpense });
 });
 
 app.get("/expenses", (req, res) => {
-  res.status(200).send(userExpenses(req.user.id, expenses));
+  res
+    .status(200)
+    .send({ data: userService.userExpenses(req.user.id, expenseService) });
 });
 
 app.get("/group-expenses", (req, res) => {
-  res
-    .status(200)
-    .send(
-      userGroupExpenses(
-        userGroups(req.user.id, groupUsersPivot, groups),
-        expenses
-      )
-    );
+  res.status(200).send({
+    data: userService.groupsExpenses(
+      req.user.id,
+      groupService,
+      groupUserService,
+      expenseService
+    ),
+  });
 });

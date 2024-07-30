@@ -1,24 +1,25 @@
-import express from "express";
-import { app as groupRouter } from "./routes/group.route";
-import { app as userRouter } from "./routes/user.route";
-import { users } from "./model/User.model";
-import { findById } from "./model/Base.model";
+import express, { NextFunction, Request, Response } from "express";
+import { app as GroupRouter } from "./routes/group.route";
+import { app as UserRouter } from "./routes/user.route";
+import { app as AuthRouter } from "./routes/auth.route";
+import { authMiddleware } from "./middlewares/auth.middleware";
+import { userService } from "./dependency";
+import { ZodError } from "zod";
+import { HttpError } from "./modules/utilities/http-error";
 
 export const app = express();
-
 app.use(express.json());
 
-app.use((req, res, next) => {
-  const { authorization } = req.headers;
-  if (typeof authorization === "string") {
-    const user = findById(authorization, users);
-    if (user) {
-      req.user = user;
-      next();
-      return;
-    }
+app.use("/auth", AuthRouter);
+app.use("/users", authMiddleware(userService), UserRouter);
+app.use("/groups", authMiddleware(userService), GroupRouter);
+
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  if (err instanceof ZodError) {
+    res.status(400).send({ message: err.errors });
   }
-  res.status(401).send("You are not authenticated");
+  if (err instanceof HttpError) {
+    res.status(err.code).send({ message: err.message });
+  }
+  res.status(500).send({ message: "Internal Server Error" });
 });
-app.use("/users", userRouter);
-app.use("/groups", groupRouter);

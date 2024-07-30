@@ -11,3 +11,15 @@ export class NotFound extends HttpError {
     super(404, message);
   }
 }
+
+export class NotAuthenticated extends HttpError {
+  constructor(public message = "You are not authenticated") {
+    super(401, message);
+  }
+}
+
+export class Forbidden extends HttpError {
+  constructor(public message = "You are not authorized for this action") {
+    super(403, message);
+  }
+}
