@@ -1,13 +1,19 @@
 import request from "supertest";
-import { app } from "../../src/api";
-import { User } from "../../src/models/User.model";
+import { User } from "../../src/model/user.model";
 
+import { Express } from "express";
+import { AppDataSource } from "../../src/data-source";
+import { makeApp } from "../../src/api";
+
+let app: Express;
 let chandler: User;
 let friends: User;
 let joey: User;
 const genUrl = (gpId: string) => `/groups/${gpId}/add-member`;
 
 beforeAll(async () => {
+  const dataSource = await AppDataSource.initialize();
+  app = makeApp(dataSource);
   await request(app).post("/auth/register").send({
     username: "chandler",
     password: "Chandler123",
@@ -41,6 +47,10 @@ beforeAll(async () => {
     });
 
   friends = friendsResponse.data;
+});
+
+afterAll(async () => {
+  await AppDataSource.destroy();
 });
 
 describe("Group", () => {

@@ -1,12 +1,12 @@
 import { Request, Response, NextFunction } from "express";
-import { UserService } from "../services/User.service";
+import { UserService } from "../services/user.service";
 
 export const authMiddleware =
   (userService: UserService) =>
-  (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     const { authorization } = req.headers;
     if (typeof authorization === "string") {
-      const user = userService.findById(authorization);
+      const user = await userService.findById(authorization);
       if (user) {
         req.user = user;
         next();

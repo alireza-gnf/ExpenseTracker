@@ -1,7 +1,7 @@
-import { ExpenseService } from "./services/Expense.service";
-import { GroupService } from "./services/Group.service";
-import { GroupUserService } from "./services/GroupUser.service";
-import { UserService } from "./services/User.service";
+import { ExpenseService } from "./services/expense.service";
+import { GroupService } from "./services/group.service";
+import { GroupUserService } from "./services/groupUser.service";
+import { UserService } from "./services/user.service";
 
 export const userService = new UserService();
 export const groupService = new GroupService();

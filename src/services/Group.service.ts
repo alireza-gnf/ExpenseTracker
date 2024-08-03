@@ -1,69 +1,41 @@
-import { Group } from "../models/Group.model";
-import { GroupUser } from "../models/GroupUser.model";
-import { User } from "../models/User.model";
-import { AddMemberDto } from "../modules/dto/addMember.dto";
-import { CreateGroupDto } from "../modules/dto/group.dto";
-import { HttpError, NotFound } from "../modules/utilities/http-error";
-import { GroupRepository } from "../repositories/Group.repo";
-import { GroupUserService } from "./GroupUser.service";
-import { UserService } from "./User.service";
+import { Group } from "../model/group.model";
+import { User } from "../model/user.model";
+import { CreateGroupDto } from "../module/dto/group.dto";
+import { HttpError, NotFound } from "../module/utilities/http-error";
+import { IGroupRepository } from "../repository/Repository.interface";
+import { UserService } from "./user.service";
 
 export class GroupService {
-  private groupRepo = new GroupRepository();
+  constructor(private repo: IGroupRepository) {}
 
-  create(
-    dto: CreateGroupDto,
-    userId: string,
-    groupUserService: GroupUserService
-  ): Group {
-    const group = this.groupRepo.create({ ...dto, creatorId: userId });
-
-    groupUserService.create({
-      groupId: group.id,
-      userId: group.creatorId,
-    });
+  async create(dto: CreateGroupDto, user: User): Promise<Group> {
+    const group = await this.repo.create({ ...dto, creatorId: user.id }, user);
 
     return group;
   }
 
-  findById(id: string): Group {
-    const group = this.groupRepo.findBy(id, "id");
-    if (!group) throw new NotFound();
-    return group;
+  async findById(id: string): Promise<Group> {
+    const group = await this.repo.findById(id);
+
+    if (group) return group;
+
+    throw new NotFound();
   }
 
-  groupUsers(
-    groupId: string,
-    userService: UserService,
-    groupUserService: GroupUserService
-  ): Array<User> {
-    return groupUserService
-      .filterBy(groupId, "groupId")
-      .reduce((users: Array<User>, groupUser: GroupUser) => {
-        const user = userService.findById(groupUser.userId);
-        if (user) users.push(user);
-        return users;
-      }, []);
-  }
+  async addMember(userId: string, groupId: string, userService: UserService) {
+    const group = await this.repo.groupWithRelations(groupId, ["users"]);
+    console.log(group);
 
-  addMember(
-    dto: AddMemberDto,
-    groupId: string,
-    userService: UserService,
-    groupUserService: GroupUserService
-  ) {
-    if (!userService.findById(dto.userId)) {
+    if (!group) throw new NotFound("Group not found");
+
+    const user = await userService.findById(userId);
+    if (!user) {
       throw new NotFound("User not found");
     }
 
-    if (
-      this.groupUsers(groupId, userService, groupUserService).find(
-        (user) => user.id === dto.userId
-      )
-    ) {
+    if (group.users.find((user) => user.id === userId))
       throw new HttpError(400, "User is already a member of this group");
-    }
 
-    groupUserService.create({ ...dto, groupId });
+    return await this.repo.addMember(group, user);
   }
 }

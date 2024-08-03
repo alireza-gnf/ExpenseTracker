@@ -6,4 +6,8 @@ export interface Expense {
   description: string;
 }
 
-export const expenses: Array<Expense> = [];
+export interface CreateExpense {
+  groupId: string;
+  amount: number;
+  description: string;
+}

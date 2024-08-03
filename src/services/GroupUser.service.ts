@@ -1,8 +1,8 @@
-import { GroupUser } from "../models/GroupUser.model";
+import { GroupUser } from "../model/groupUser.model";
 import {
   CreateGroupUser,
   GroupUserRepository,
-} from "../repositories/GroupUser.repo";
+} from "../repository/groupUser.repo";
 
 export class GroupUserService {
   private groupUserRepo = new GroupUserRepository();

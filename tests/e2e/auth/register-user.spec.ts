@@ -1,5 +1,18 @@
 import request from "supertest";
-import { app } from "../../../src/api";
+import { Express } from "express";
+import { AppDataSource } from "../../../src/data-source";
+import { makeApp } from "../../../src/api";
+
+let app: Express;
+
+beforeAll(async () => {
+  const dataSource = await AppDataSource.initialize();
+  app = makeApp(dataSource);
+});
+
+afterAll(async () => {
+  await AppDataSource.destroy();
+});
 
 describe("Register User", () => {
   it("Should fail if username and password are not valid", async () => {
@@ -10,7 +23,6 @@ describe("Register User", () => {
         password: "Strong123",
       })
       .expect(400);
-
     await request(app)
       .post("/auth/register")
       .send({
@@ -18,7 +30,6 @@ describe("Register User", () => {
         password: "Strong123",
       })
       .expect(400);
-
     await request(app)
       .post("/auth/register")
       .send({
@@ -36,5 +47,15 @@ describe("Register User", () => {
         password: "Strong123",
       })
       .expect(201);
+  });
+
+  it("Should fail if username already exists", async () => {
+    await request(app)
+      .post("/auth/register")
+      .send({
+        username: "tempUser123",
+        password: "Stron123",
+      })
+      .expect(400);
   });
 });

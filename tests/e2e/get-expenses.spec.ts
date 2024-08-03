@@ -1,9 +1,12 @@
-import { app } from "../../src/api";
 import request from "supertest";
-import { User } from "../../src/models/User.model";
-import { Expense } from "../../src/models/Expense.model";
+import { User } from "../../src/model/user.model";
+import { Expense } from "../../src/model/expense.model";
 import { loggedInTemp } from "../utility/temps";
+import { Express } from "express";
+import { AppDataSource } from "../../src/data-source";
+import { makeApp } from "../../src/api";
 
+let app: Express;
 let chandler: User;
 let monicha: User;
 let monichaSpent: Expense;
@@ -12,6 +15,9 @@ let joeySpent: Expense;
 
 const userExpenseUrl = "/users/expenses";
 beforeAll(async () => {
+  const dataSource = await AppDataSource.initialize();
+  app = makeApp(dataSource);
+
   const { body: chandlerResponse } = await request(app)
     .post("/auth/register")
     .send({
@@ -103,6 +109,10 @@ beforeAll(async () => {
   monichaSpent = monichaSpentResponse.data;
 });
 
+afterAll(async () => {
+  await AppDataSource.destroy();
+});
+
 const userGroupExpenseUrl = "/users/group-expenses";
 describe("Get Expenses", () => {
   it("Should fail if user is not logged in", async () => {
@@ -138,7 +148,7 @@ describe("Get Expenses", () => {
 
   describe("Get user's groups spents", () => {
     it("Should fail if user does not have any groups", async () => {
-      const tempUser = await loggedInTemp();
+      const tempUser = await loggedInTemp(app);
       await request(app)
         .get(userGroupExpenseUrl)
         .set({

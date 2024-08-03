@@ -1,10 +1,15 @@
 import request from "supertest";
-import { app } from "../../src/api";
-import { User } from "../../src/models/User.model";
+import { User } from "../../src/model/user.model";
+import { Express } from "express";
+import { AppDataSource } from "../../src/data-source";
+import { makeApp } from "../../src/api";
 
+let app: Express;
 let tempUser: User;
 
 beforeAll(async () => {
+  const dataSource = await AppDataSource.initialize();
+  app = makeApp(dataSource);
   await request(app).post("/auth/register").send({
     username: "tempUser",
     password: "Strong123",
@@ -16,6 +21,10 @@ beforeAll(async () => {
   });
 
   tempUser = body.data;
+});
+
+afterAll(async () => {
+  await AppDataSource.destroy();
 });
 
 describe("Group", () => {

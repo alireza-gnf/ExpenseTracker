@@ -1,4 +1,4 @@
-import { GroupUser } from "../models/GroupUser.model";
+import { GroupUser } from "../model/groupUser.model";
 
 export interface CreateGroupUser {
   userId: string;
